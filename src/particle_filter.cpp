@@ -75,6 +75,40 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
+  
+  //Random generator
+  std::default_random_engine gen;
+  
+  // For each particle, calculates the predict step and add Gaussian noise
+  for (int i = 0; i < particles.size(); ++i) {
+    
+    double oldTh = particles[i].theta;
+    double new_theta = particles[i].theta + yaw_rate*delta_t;
+    double v_y;
+    // check division by zero
+    if (fabs(yaw_rate) < 0.0001) {
+      double v_y = 0;
+    }
+    else{
+      double v_y = velocity/yaw_rate;
+    }
+    
+    // Calculate the new predicted states
+    double new_x = particles[i].x + v_y*(sin(new_theta) - sin(oldTh));
+    double new_y = particles[i].y + v_y*(cos(oldTh) - cos(new_theta));
+    //new_theta
+    
+    //Creates the normal (Gaussian) distributions
+    normal_distribution<double> dist_x(new_x, std_pos[0]);
+    normal_distribution<double> dist_y(new_y, std_pos[1]);
+    normal_distribution<double> dist_angle(new_theta, std_pos[2]);
+    
+    // Update the particle state
+    particles[i].x = dist_x(gen);
+    particles[i].y = dist_y(gen);
+    particles[i].theta = dist_angle(gen);
+     
+  }
 
 }
 
