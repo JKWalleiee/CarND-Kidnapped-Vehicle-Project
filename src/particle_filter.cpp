@@ -21,6 +21,8 @@
 using std::string;
 using std::vector;
 
+using std::normal_distribution;
+
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
   /**
    * TODO: Set the number of particles. Initialize all particles to 
@@ -30,7 +32,37 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * NOTE: Consult particle_filter.h for more information about this method 
    *   (and others in this file).
    */
-  num_particles = 0;  // TODO: Set the number of particles
+  num_particles = 100;  // TODO: Set the number of particles
+  
+  //Random generator
+  std::default_random_engine gen;
+  
+  //Get the standard deviations
+  double std_x, std_y, std_angle;
+  std_x = std[0];
+  std_y = std[1];
+  std_angle = std[2]; 
+  
+  //Creates the normal (Gaussian) distributions
+  normal_distribution<double> dist_x(x, std_x);
+  normal_distribution<double> dist_y(y, std_y);
+  normal_distribution<double> dist_angle(theta, std_angle);
+  
+  for (int i = 0; i < num_particles; ++i) {
+    // Create a new particle
+  	Particle newP;
+  	newP.weight = 1.0;
+    newP.id = i;
+    newP.x = dist_x(gen);
+    newP.y = dist_y(gen);
+    newP.theta = dist_angle(gen);
+    
+    // Push-back the new particle in the particles vector
+    particles.push_back (newP);
+  }
+  
+  // set the is_initialized attribute to true
+  is_initialized = true;
 
 }
 
