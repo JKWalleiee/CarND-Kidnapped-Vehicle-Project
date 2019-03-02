@@ -15,6 +15,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <limits>
 
 #include "helper_functions.h"
 
@@ -22,6 +23,7 @@ using std::string;
 using std::vector;
 
 using std::normal_distribution;
+using std::numeric_limits;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
   /**
@@ -122,7 +124,24 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
    *   probably find it useful to implement this method and use it as a helper 
    *   during the updateWeights phase.
    */
-
+  
+  // Associate each observation with the closest landmark using nearest neighbor
+  for (int i = 0; i < observations.size(); i++) {
+    
+    double min = numeric_limits<double>::max();
+    
+    for (int j = 0; j < predicted.size(); i++) {
+      
+       // if the distance between the observation and the landmark is tne minimum
+       // update the association pair
+       double dist_op = dist(observations[i].x, observations[i].y, 
+                             predicted[j].x, predicted[j].y);
+       if(dist_op < min){
+         min = dist_op;
+         observations[i].id = predicted[j].id;
+       }
+    }
+  }
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -141,6 +160,87 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   and the following is a good resource for the actual equation to implement
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
+  
+  // for each particle
+  for (int i = 0; i < num_particles; i++) {
+    
+    //Get the particle state (position - heading)
+    double p_x = particles[i].x;
+    double p_y = particles[i].y;
+	double p_theta = particles[i].theta;
+    
+    // create a LandmarkObs vector for the map landmark locations within sensor range of the particle
+    vector<LandmarkObs> predictions;
+
+    // for each map landmark
+    for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
+      
+      // get id and x,y coordinates
+      float lm_x = map_landmarks.landmark_list[j].x_f;
+      float lm_y = map_landmarks.landmark_list[j].y_f;
+      int lm_id = map_landmarks.landmark_list[j].id_i;
+      
+      // only consider landmarks within sensor range of the particle
+      if (dist(p_x, p_y, lm_x, lm_y) <= sensor_range) {
+
+        // add prediction to vector
+        predictions.push_back(LandmarkObs{ lm_id, lm_x, lm_y });
+      }
+    }
+
+    // create and populate a LandmarkObs vector of the observations in map coordinates
+    vector<LandmarkObs> map_obs;
+    for (int j = 0; j < observations.size(); j++) {
+      double map_x = cos(p_theta)*observations[j].x - sin(p_theta)*observations[j].y + p_x;
+      double map_y = sin(p_theta)*observations[j].x + cos(p_theta)*observations[j].y + p_y;
+      map_obs.push_back(LandmarkObs{ observations[j].id, map_x, map_y });
+    }
+    
+    // Performs data association between the prediction and transformated observations of the particle
+    dataAssociation(predictions, map_obs);   
+    
+    //init associations vectors
+    vector<int> associations;
+    vector<double> sense_x;
+    vector<double> sense_y;
+    
+    //reinit weight
+    particles[i].weight = 1.0;
+    
+    //set common components of the multivariate Gaussian distribution
+    double std_2_pi = 2.0*M_PI*std_landmark[0]*std_landmark[1];
+    double std_x_2  = 2.0*std_landmark[0]*std_landmark[0];
+    double std_y_2  = 2.0*std_landmark[1]*std_landmark[1];
+    
+    // for each transformated observations
+    for (int k = 0; k < map_obs.size(); k++) {
+      
+      LandmarkObs o = map_obs[i];
+      
+      //recover associated landmark
+      Map::single_landmark_s m =  map_landmarks.landmark_list.at(o.id-1);
+      
+      //compute Multivariate Gaussian probability
+      double c1 = pow(o.x - m.x_f, 2);
+      double c2 = pow(o.y - m.y_f, 2);
+      
+      double c3 = (c1/std_x_2 + c2/std_y_2);
+      double c_e = exp(-c3);
+      
+      double w = c_e/std_2_pi;
+      
+      //product of all the weights
+      particles[i].weight *= w;
+      
+      //add values to associations vectors
+      associations.push_back(o.id);
+      sense_x.push_back(o.x);
+      sense_y.push_back(o.y);      
+    }
+
+    //update particle's associations
+    SetAssociations(particles[i], associations, sense_x, sense_y); 
+  }
 
 }
 
@@ -151,6 +251,14 @@ void ParticleFilter::resample() {
    * NOTE: You may find std::discrete_distribution helpful here.
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
+  
+  vector<Particle> new_particles;
+
+  // get all of the current weights
+  vector<double> weights;
+  for (int i = 0; i < num_particles; i++) {
+    weights.push_back(particles[i].weight);
+}
 
 }
 
