@@ -182,7 +182,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       
       // only consider landmarks within sensor range of the particle
       if (dist(p_x, p_y, lm_x, lm_y) <= sensor_range) {
-
         // add prediction to vector
         predictions.push_back(LandmarkObs{ lm_id, lm_x, lm_y });
       }
@@ -214,8 +213,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     
     // for each transformated observations
     for (int k = 0; k < map_obs.size(); k++) {
-      
-      LandmarkObs o = map_obs[i];
+      //actual transformated observation (map coordinates)
+      LandmarkObs o = map_obs[k];
       
       //recover associated landmark
       Map::single_landmark_s m =  map_landmarks.landmark_list.at(o.id-1);
@@ -238,7 +237,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       sense_y.push_back(o.y);      
     }
 
-    //update particle's associations
+    //update particle associations
     SetAssociations(particles[i], associations, sense_x, sense_y); 
   }
 
@@ -252,14 +251,30 @@ void ParticleFilter::resample() {
    *   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
    */
   
+  //new (temporal) particles set
   vector<Particle> new_particles;
 
-  // get all of the current weights
+  // Get a vector with all the current weights.
   vector<double> weights;
   for (int i = 0; i < num_particles; i++) {
-    weights.push_back(particles[i].weight);
-}
+     weights.push_back(particles[i].weight);
+  }
 
+  //create discrete distibution from particles weights.
+  random_device rd;  
+  std::mt19937 gen(rd());
+  std::discrete_distribution<> d(weights.begin(), weights.end());
+  
+  //Resample.
+  for(int i=0; i < num_particles; i++){      
+    int index = d(gen);  
+    Particle new_p = particles[index];
+    new_particles.push_back(new_p);
+  }
+  particles.clear();
+  weights.clear();
+  
+  particles = new_particles;
 }
 
 void ParticleFilter::SetAssociations(Particle& particle, 
