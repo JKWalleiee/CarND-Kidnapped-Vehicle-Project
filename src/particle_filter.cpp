@@ -81,38 +81,39 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
   
   //Random generator
   std::default_random_engine gen;
+
+  //Creates the normal (Gaussian) distributions
+  normal_distribution<double> dist_x(0, std_pos[0]);
+  normal_distribution<double> dist_y(0, std_pos[1]);
+  normal_distribution<double> dist_angle(0, std_pos[2]);
   
   // For each particle, calculates the predict step and add Gaussian noise
   for (int i = 0; i < particles.size(); ++i) {
     
-    double oldTh = particles[i].theta;
-    double new_theta = particles[i].theta + yaw_rate*delta_t;
-    double v_y;
-    // check division by zero
+    double new_x, new_y, new_theta;
+        
+    //check if yaw_rate is equal to zero (moving straight)
     if (fabs(yaw_rate) < 0.0001) {
-      double v_y = 0;
+    
+    // Calculate the new predicted states
+    new_x = particles[i].x + velocity*delta_t*cos(particles[i].theta);
+    new_y = particles[i].y + velocity*delta_t*sin(particles[i].theta);
+    new_theta = particles[i].theta;
     }
     else{
       double v_y = velocity/yaw_rate;
+    
+      // Calculate the new predicted states
+      new_theta = particles[i].theta + yaw_rate*delta_t;
+      new_x = particles[i].x + v_y*(sin(new_theta) - sin(particles[i].theta));
+      new_y = particles[i].y + v_y*(cos(particles[i].theta) - cos(new_theta));
     }
     
-    // Calculate the new predicted states
-    double new_x = particles[i].x + v_y*(sin(new_theta) - sin(oldTh));
-    double new_y = particles[i].y + v_y*(cos(oldTh) - cos(new_theta));
-    //new_theta
-    
-    //Creates the normal (Gaussian) distributions
-    normal_distribution<double> dist_x(new_x, std_pos[0]);
-    normal_distribution<double> dist_y(new_y, std_pos[1]);
-    normal_distribution<double> dist_angle(new_theta, std_pos[2]);
-    
     // Update the particle state
-    particles[i].x = dist_x(gen);
-    particles[i].y = dist_y(gen);
-    particles[i].theta = dist_angle(gen);
-     
+    particles[i].x = new_x + dist_x(gen);
+    particles[i].y = new_y + dist_y(gen);
+    particles[i].theta = new_theta + dist_angle(gen);
   }
-
 }
 
 void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted, 
