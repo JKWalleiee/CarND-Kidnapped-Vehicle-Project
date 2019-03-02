@@ -131,7 +131,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
     
     double min = numeric_limits<double>::max();
     
-    for (int j = 0; j < predicted.size(); i++) {
+    for (int j = 0; j < predicted.size(); j++) {
       
        // if the distance between the observation and the landmark is tne minimum
        // update the association pair
